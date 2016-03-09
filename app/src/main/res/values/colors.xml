@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="actionButtonPickupColor">#7ED321</color>
+    <color name="actionButtonDestinationColor">#DD4658</color>
+    <color name="actionButtonOptimize">#0066FF</color>
+    <color name="actionButtonTextPickupColor">#FFFFFF</color>
+    <color name="actionButtonTextDestinationColor">#FFFFFF</color>
+    <color name="actionButtonTextOptimizeColor">#FFFFFF</color>
+</resources>
