@@ -1,11 +1,14 @@
 package com.likwidskin.cabAgg;
 
+import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -14,15 +17,18 @@ import android.widget.RelativeLayout;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, LocationListener {
 
     private final String LOG_TAG = MainActivity.class.getSimpleName();
-    
+
     private static final float ZOOM_FACTOR = 2.5f;
     private static final double METERS_PER_MILE = 1609.344;
 
@@ -32,6 +38,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Location mCurrentUserLocation;
     private Location pickupLocation;
     private Location destinationLocation;
+    private Marker pickupMarker;
+    private Marker destinationMarker;
 
     // view outlets
     private RelativeLayout bottomBar;
@@ -62,6 +70,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         this.myLocationButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (mCurrentUserLocation == null) {
+                    return;
+                }
                 mMap.animateCamera(CameraUpdateFactory.newLatLng(Utility.latLngFromLocation(mCurrentUserLocation)));
             }
         });
@@ -78,6 +89,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_share) {
+            startActivity(new Intent(this, ShareActivity.class));
+            return true;
+        }
+        if (id == R.id.action_faq) {
+            startActivity(new Intent(this, FAQActivity.class));
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
     /**
      * Manipulates the map once available.
@@ -96,18 +128,77 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng sydney = new LatLng(37.8, -122.4);
         mMap.addMarker(new MarkerOptions().position(sydney).title("Marker on Sydney"));
 
+        mMap.setPadding(0, 0, 0, Utility.dpToPx(getApplicationContext(), 110));
+        mMap.getUiSettings().setMapToolbarEnabled(false);
+        mMap.getUiSettings().setZoomControlsEnabled(false);
+
+    }
+
+    private void removeMarkerIfNeeded(Marker m) {
+        if (m != null) {
+            m.remove();
+        }
+    }
+
+    // type 0 - for pickup , else destination
+    private void initMarker (Location loc, int type) {
+        BitmapDescriptor des = BitmapDescriptorFactory.defaultMarker();
+
+        LatLng latLng = Utility.latLngFromLocation(loc);
+        if (type == 0) {
+            if (pickupMarker == null) {
+                pickupMarker = mMap.addMarker(new MarkerOptions()
+                        .position(latLng)
+                        .icon(BitmapDescriptorFactory.defaultMarker(120.0f)));
+            } else {
+                pickupMarker.setPosition(latLng);
+            }
+        } else {
+            if (destinationMarker == null) {
+                destinationMarker = mMap.addMarker(new MarkerOptions()
+                        .position(Utility.latLngFromLocation(loc))
+                        .icon(BitmapDescriptorFactory.defaultMarker(0.0f)));
+            } else {
+                destinationMarker.setPosition(latLng);
+            }
+        }
+    }
+
+    private void updateMarkers() {
+        switch (this.step) {
+            case MainViewStepSetPickup:
+            {
+                removeMarkerIfNeeded(pickupMarker);
+                removeMarkerIfNeeded(destinationMarker);
+                break;
+            }
+            case MainViewStepSetDest:
+            {
+                initMarker(pickupLocation, 0);
+                removeMarkerIfNeeded(destinationMarker);
+                break;
+            }
+            case MainViewStepSetOptimize:
+            {
+                initMarker(pickupLocation, 0);
+                initMarker(destinationLocation, 1);
+                break;
+            }
+        }
     }
 
     private void updatePickupLocation(Location pickupLocation) {
         this.step = MainViewStep.MainViewStepSetDest;
         this.pickupLocation = pickupLocation;
         setupActionButton();
+        updateMarkers();
     }
 
     private void updateDestinationLocation(Location destinationLocation) {
         this.step = MainViewStep.MainViewStepSetOptimize;
         this.destinationLocation = destinationLocation;
         setupActionButton();
+        updateMarkers();
     }
 
     // region Camera Move
