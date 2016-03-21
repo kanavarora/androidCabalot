@@ -25,7 +25,7 @@ import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, LocationListener {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnCameraChangeListener {
 
     private final String LOG_TAG = MainActivity.class.getSimpleName();
 
@@ -40,11 +40,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Location destinationLocation;
     private Marker pickupMarker;
     private Marker destinationMarker;
+    private LyftHandler mLyftHandler;
 
     // view outlets
     private RelativeLayout bottomBar;
     private Button actionButton;
     private ImageButton myLocationButton;
+    private SetDestinationView pickupView;
+    private SetDestinationView destinationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,8 +80,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
+        this.pickupView = (SetDestinationView) findViewById(R.id.pickupView);
+        this.pickupView.isPickup = true;
+        this.destinationView = (SetDestinationView) findViewById(R.id.destinationView);
+        this.destinationView.isPickup = false;
 
         // setup stuff
+        this.mLyftHandler = new LyftHandler();
         this.setupActionButton();
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
@@ -131,6 +139,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.setPadding(0, 0, 0, Utility.dpToPx(getApplicationContext(), 110));
         mMap.getUiSettings().setMapToolbarEnabled(false);
         mMap.getUiSettings().setZoomControlsEnabled(false);
+        mMap.setOnCameraChangeListener(this);
 
     }
 
@@ -187,15 +196,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private void updatePickupLocation(Location pickupLocation) {
-        this.step = MainViewStep.MainViewStepSetDest;
+    private void updatePickupLocation(Location pickupLocation, boolean isTemp) {
+        if (!isTemp) {
+            this.step = MainViewStep.MainViewStepSetDest;
+        }
         this.pickupLocation = pickupLocation;
         setupActionButton();
         updateMarkers();
     }
 
-    private void updateDestinationLocation(Location destinationLocation) {
-        this.step = MainViewStep.MainViewStepSetOptimize;
+    private void updateDestinationLocation(Location destinationLocation, boolean isTemp) {
+        if (!isTemp) {
+            this.step = MainViewStep.MainViewStepSetOptimize;
+        }
         this.destinationLocation = destinationLocation;
         setupActionButton();
         updateMarkers();
@@ -242,6 +255,26 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
     // endregion
 
+    // region onCameraChangeListener
+
+    @Override
+    public void onCameraChange(CameraPosition cameraPosition) {
+        Location loc = Utility.locationFromLatLng(cameraPosition.target);
+        switch (this.step) {
+            case MainViewStepSetPickup: {
+                this.pickupView.setWithPin(loc);
+                updatePickupLocation(loc, true);
+                break;
+            }
+            case MainViewStepSetDest: {
+                this.destinationView.setWithPin(loc);
+                updateDestinationLocation(loc, true);
+                break;
+            }
+        }
+    }
+    // endregion
+
     protected void setupActionButton() {
         switch (this.step) {
             case MainViewStepSetPickup:
@@ -278,14 +311,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Location mapLocation = centeredLocation();
         switch (step) {
             case MainViewStepSetPickup: {
-                updatePickupLocation(mapLocation);
+                updatePickupLocation(mapLocation, false);
                 break;
             }
             case MainViewStepSetDest: {
-                updateDestinationLocation(mapLocation);
+                updateDestinationLocation(mapLocation, false);
                 break;
             }
             case MainViewStepSetOptimize: {
+                mLyftHandler.optimize(pickupLocation, destinationLocation, 0f, 0f);
                 break;
             }
         }

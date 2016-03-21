@@ -60,6 +60,9 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.likwidskin.cabAgg.MainActivity" />
         </activity>
+        <service
+            android:name=".FetchAddressIntentService"
+            android:exported="false"/>
     </application>
 
 </manifest>
